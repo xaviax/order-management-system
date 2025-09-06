@@ -20,7 +20,9 @@ urlpatterns = [
 
     #Routes for cart handling
 
-    path('cart/menu-items',views.CartListCreate.as_view())
+    path('cart/menu-items',views.CartListCreateDelete.as_view()),
+
+
 
 
 
