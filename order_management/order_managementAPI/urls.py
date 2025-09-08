@@ -23,6 +23,12 @@ urlpatterns = [
     path('cart/menu-items',views.CartListCreateDelete.as_view()),
 
 
+    #Routes for order management
+
+    path('orders',views.OrderCreateList.as_view()),
+
+    path('orders/<int:pk>',views.OrderRetrieveUpdateDestroy.as_view()),
+
 
 
 

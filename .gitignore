@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual Environment
+.env
+.venv/
+env/
+venv/
+ENV/
+
+# Django / DRF
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+*.log
+
+# If you don’t want to track migrations (optional, useful for personal projects)
+# Uncomment if desired
+# */migrations/*
+# !*/migrations/__init__.py
+
+# PyCharm / JetBrains IDE
+.idea/
+*.iml
+
+# OS-specific

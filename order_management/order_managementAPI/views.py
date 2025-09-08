@@ -1,12 +1,14 @@
 from django.shortcuts import render
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.response import Response
-from rest_framework import generics, filters, status
+from rest_framework import generics, filters
 from .serializers import *
 from .models import *
 from .permissions import *
 from django.contrib.auth.models import Group
 from rest_framework.permissions import IsAuthenticated
+from django_filters.rest_framework import DjangoFilterBackend
+from django.db import transaction
 # Create your views here.
 
 
@@ -14,11 +16,19 @@ class MenuItemListView(generics.ListCreateAPIView):
     queryset=MenuItem.objects.all()
     serializer_class=MenuItemSerializer
     permission_classes = [IsAccessingMenuItem]
+    filter_backends =[DjangoFilterBackend,filters.SearchFilter,filters.OrderingFilter]
 
-    filter_backends =[filters.OrderingFilter]
-    # this will allow to perform ordering with these fields
-    ordering_fields = ['price','title']
-    # this is for the default
+    #field filtering
+    filterset_fields=['price','category']
+
+   #text search
+    search_fields=['title']
+
+
+
+
+    ordering_fields=['price','title']
+   #this below is the default ordering
     ordering =['id']
 
 
@@ -64,7 +74,7 @@ class ManagerDestroy(generics.DestroyAPIView):
 
         manager_group=Group.objects.get(name='Manager')
 
-        if instance.groups.filter(name=manager_group).exists():
+        if instance.groups.filter(name='Manager').exists():
             instance.groups.remove(manager_group)
 
         else:
@@ -104,7 +114,7 @@ class DeliveryCrewDestroy(generics.DestroyAPIView):
     def perform_destroy(self,instance):
 
         delivery_crew_group=Group.objects.get(name='Delivery Crew')
-        if instance.groups.filter(name=delivery_crew_group).exists:
+        if instance.groups.filter(name='Delivery Crew').exists:
             instance.groups.remove(delivery_crew_group)
 
         elif instance.groups.exists() is not True:
@@ -131,6 +141,17 @@ class OrderCreateList(generics.ListCreateAPIView):
 
     serializer_class=OrderSerializer
     permission_classes=[IsAuthenticated]
+    filter_backends = [DjangoFilterBackend,filters.OrderingFilter]
+
+    filterset_fields=['status','total','date']
+
+
+
+    ordering_fields=['date','total']
+
+    ordering =['-date']
+
+
 
     def get_queryset(self):
 
@@ -156,18 +177,96 @@ class OrderCreateList(generics.ListCreateAPIView):
         if not cart_items.exists():
             raise ValidationError("Cart is Empty")
 
-        total = sum([item.price for item in cart_items])
-        order = serializer.save(user=user,total=total)
 
 
-        for item in cart_items:
-            OrderItem.objects.create(
-                order=order,
-                menuitem=item.menuitem,
-                unit_price=item.unit_price,
-                price=item.price,
-                quantity=item.quantity
-            )
+        with transaction.atomic():
+
+            total = sum([item.price for item in cart_items])
+            order = serializer.save(user=user,total=total)
+
+            order_items=[
+                OrderItem(
+                    order=order,
+                    menuitem=item.menuitem,
+                    unit_price=item.unit_price,
+                    price=item.price,
+                    quantity=item.quantity
+                )
+                for item in cart_items
+            ]
+            OrderItem.objects.bulk_create(order_items)
+            Cart.objects.filter(user=user).delete()
+
+
+
+
+
+class OrderRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
+
+    serializer_class=OrderSerializer
+    permission_classes=[IsAuthenticated]
+
+    def get_queryset(self):
+
+        user=self.request.user
+
+        if self.request.user.groups.filter(name='Customer').exists():
+            return Order.objects.filter(user=user)
+
+        elif self.request.user.groups.filter(name='Manager').exists():
+            return Order.objects.all()
+
+        elif self.request.user.groups.filter(name='Delivery Crew').exists():
+            return Order.objects.filter(delivery_crew=user)
+
+        return Order.objects.none()
+
+
+    def perform_update(self,serializer):
+        user = self.request.user
+        if  user.groups.filter(name='Manager').exists():
+            #the required data from the manager will be the id for the delivery crew and nothing else
+            delivery_crew=self.request.data.get("delivery_crew")
+
+            if not delivery_crew:
+                raise ValidationError({"delivery_crew":"This field is required"})
+
+            serializer.save(delivery_crew_id=delivery_crew)
+
+
+        elif user.groups.filter(name='Delivery Crew').exists():
+            status=self.request.data.get("status")
+
+            if not status:
+                raise ValidationError({'status':'This field is required'})
+
+            status_value=str(status).lower()
+            normalized_status_value=None
+
+            if status_value in ['1','true']:
+                normalized_status_value=True
+
+            elif status_value in ['0','false']:
+                normalized_status_value=False
+
+            else:
+                raise ValidationError({'status':'must be boolean or true/false'})
+
+            serializer.save(status=normalized_status_value)
+
+
+        else:
+            raise PermissionDenied("You do not have permission to make changes")
+
+    def perform_destroy(self,instance):
+        user= self.request.user
+
+        if user.groups.filter(name='Manager').exists():
+          instance.delete()
+
+        else:
+            raise PermissionDenied("You do not have the permission to delete order")
+
 
 
 
