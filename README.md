@@ -3,7 +3,7 @@
 A Django REST Framework project for managing menu items, carts, orders, and user roles (Customers, Managers, Delivery Crew).
 The API demonstrates role-based access control, JWT authentication (Djoser + SimpleJWT), filtering, searching, ordering, pagination and throttling.
 
-## 🚀 Features
+##  Features
 
 - JWT Authentication with Djoser & SimpleJWT
 - Role-based permissions (Customer / Manager / Delivery Crew)
@@ -15,7 +15,7 @@ The API demonstrates role-based access control, JWT authentication (Djoser + Sim
 - Rate limiting (throttling) for anonymous and authenticated users
 - Uses MySQL (configurable) in settings.py
 
-## 🛠️ Requirements
+## 🛠 Requirements
 
 - Python 3.10+ (project uses Django 5+)
 - MySQL server (or change DB engine to SQLite for quick testing)
@@ -194,7 +194,7 @@ All protected endpoints use `Authorization: Bearer <ACCESS_TOKEN>`.
   - Menu items: `?category=<id>&price=<value>`
   - Orders: `?status=true&date=2025-09-01&ordering=-total`
 
-## 🧪 Notes on behavior & implementation details
+##  Notes on behavior & implementation details
 
 - When adding to cart, only `menuitem` and `quantity` are provided by the client; the server looks up `MenuItem.price` and stores `unit_price` and `price` in `Cart`.
 
@@ -209,11 +209,3 @@ All protected endpoints use `Authorization: Bearer <ACCESS_TOKEN>`.
 - Throttling is applied globally; you can override per-view using `throttle_classes`.
 
 
-
-##  Future improvements 
-
-- Dockerize the application (Dockerfile + docker-compose)
-- Add Swagger/OpenAPI UI (drf-spectacular or drf-yasg)
-- Add tests (unit + integration) and CI pipeline
-- Payment integration for order checkout
-- Background worker (Celery) for order processing / notifications
